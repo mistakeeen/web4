@@ -4,7 +4,7 @@ session_start();
 require_once 'conn.php';
 
 
-$query = "SELECT id, title, short_text, full_text, image, publish_date FROM news WHERE is_published = 1 ORDER BY publish_date DESC";
+$query = "SELECT id, title, full_text, publish_date FROM news WHERE is_published = 1 ORDER BY publish_date DESC";
 $result = $mysqli->query($query);
 
 
