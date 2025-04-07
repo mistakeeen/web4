@@ -242,7 +242,7 @@ $current_page = "login";
                     <input type="text" id="surname" name="surname" required>
                 </div>
                 <div class="form-group">
-                    <label for="lastname">Фамилия</label>
+                    <label for="lastname">Отчество</label>
                     <input type="text" id="lastname" name="lastname" required>
                 </div>
                 <div class="form-group">
@@ -272,4 +272,21 @@ $current_page = "login";
     ?>
     
 </body>
+<footer style="
+    background-color: #003580;
+    color: white;
+    padding: 30px 0;
+    text-align: center;
+    margin-top: 50px;
+    font-family: Arial, sans-serif;
+">
+    <div style="max-width: 100%; margin: 0 auto; padding: 0 px;">
+        <div style="margin-bottom: 15px;">
+            <p style="font-size: 18px; font-weight: bold; margin-bottom: 5px;">Сервис поиска и покупки авиабилетов</p>
+        </div>
+        <div>
+            <p style="font-size: 12px;">Разработчик: Данилов Г. А. user@server.com</p>
+        </div>
+    </div>
+</footer>
 </html>

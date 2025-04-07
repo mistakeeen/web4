@@ -71,6 +71,7 @@ $current_page = "news";
         
         .news-section {
             margin: 2rem 0;
+            height: 700px;
         }
         
         .news-list {
@@ -161,4 +162,21 @@ $current_page = "news";
     ?>
 
 </body>
+<footer style="
+    background-color: #003580;
+    color: white;
+    padding: 30px 0;
+    text-align: center;
+    margin-top: 50px;
+    font-family: Arial, sans-serif;
+">
+    <div style="max-width: 100%; margin: 0 auto; padding: 0 px;">
+        <div style="margin-bottom: 15px;">
+            <p style="font-size: 18px; font-weight: bold; margin-bottom: 5px;">Сервис поиска и покупки авиабилетов</p>
+        </div>
+        <div>
+            <p style="font-size: 12px;">Разработчик: Данилов Г. А. user@server.com</p>
+        </div>
+    </div>
+</footer>
 </html>

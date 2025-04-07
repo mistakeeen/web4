@@ -39,7 +39,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['from'])) {
             WHERE 
                 dep_air.`Город` = ? AND 
                 arr_air.`Город` = ? AND 
-                DATE(f.`Дата вылета`) = ?";
+                DATE(f.`Дата вылета`) = ?
+                AND f.`Кол-во доступных мест` > 0";
     if (!empty($airline)) {
         $sql .= " AND ac.`Название` = ?";
     }
@@ -243,6 +244,19 @@ if (isset($_SESSION['search_params']) && isset($_GET['filter'])) {
             border: none;
             transition: background-color 0.3s;
         }
+        .btn_buy{
+            padding: 10px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #003580;
+            color: white;
+            cursor: pointer;
+            border: none;
+            transition: background-color 0.3s;
+        }
         
         .search-form button:hover {
             background-color: #0048a7;
@@ -372,7 +386,12 @@ if (isset($_SESSION['search_params']) && isset($_GET['filter'])) {
                             <td>".$row["Время прибытия"]."</td>
                             <td>".$row["Стоимость"]."</td>";
                             if (isset($_SESSION['user_id'])){
-                               echo "<td><a href="."purchase.php?flight_id=".$row['flight_id']."class='btn btn-buy'>Купить билет</a></td>";
+                               echo "<td><form method='post' action='purchase.php' style='display:inline;'>
+                                <input type='hidden' name='flight_id' value=".$row['flight_id'].">
+                                <input type='number' name='ticket_count' min='1' max=".$row['Кол-во доступных мест']." value='1' style='width: 50px;'>
+                               <button type='submit' class='btn_buy'>Купить</button>
+                           </form>
+                           </td>";
                             }
                           echo "</tr>";
                 }
@@ -391,4 +410,21 @@ if (isset($_SESSION['search_params']) && isset($_GET['filter'])) {
         <?php endif; ?>
     </div>
 </body>
+<footer style="
+    background-color: #003580;
+    color: white;
+    padding: 30px 0;
+    text-align: center;
+    margin-top: 50px;
+    font-family: Arial, sans-serif;
+">
+    <div style="max-width: 100%; margin: 0 auto; padding: 0 px;">
+        <div style="margin-bottom: 15px;">
+            <p style="font-size: 18px; font-weight: bold; margin-bottom: 5px;">Сервис поиска и покупки авиабилетов</p>
+        </div>
+        <div>
+            <p style="font-size: 12px;">Разработчик: Данилов Г. А. user@server.com</p>
+        </div>
+    </div>
+</footer>
 </html>

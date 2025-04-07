@@ -13,7 +13,7 @@ $user_id = $_SESSION['user_id'];
 $user_query = "SELECT ФИО, email, Телефон, Паспорт FROM users WHERE user_id = $user_id";
 $user_result = $mysqli->query($user_query);
 $user_data = $user_result->fetch_assoc();
-
+$change_data = 0;
 
 if ($_SERVER['REQUEST_METHOD'] == 'GET' && isset($_GET['logout']))
 {
@@ -27,7 +27,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'GET' && isset($_GET['logout']))
 $tickets_query = "SELECT 
                     t.ticket_id,
                     t.`Номер места`,
-                    t.`Статус`,
+                    t.`ФИО_пассажира`,
+                    t.`Паспортные_данные`,
                     t.`Багаж`,
                     t.`Питание`,
                     f.`Номер рейса`,
@@ -58,9 +59,12 @@ $tickets_query = "SELECT
                     t.user_id = $user_id";
 $tickets_result = $mysqli->query($tickets_query);
 
-
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['change'])) {
+    $change_data = 1;
+}
 $update_message = '';
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_profile'])) {
+    $change_data = 0;
     $name = trim($_POST['name']);
     $phone = trim($_POST['phone']);
     $current_password = trim($_POST['current_password']);
@@ -127,13 +131,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_profile'])) {
             color: #333;
             line-height: 1.6;
         }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-        
+    
         header {
             background-color: #003580;
             color: white;
@@ -355,6 +353,36 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_profile'])) {
             background-color: #003580;
             color: white;
         }
+        .container {
+            width: 90%;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        nav ul {
+            display: flex;
+            list-style: none;
+        }
+        
+        nav ul li {
+            margin-right: 20px;
+        }
+        
+        nav ul li a {
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+            padding: 5px 10px;
+            border-radius: 3px;
+            transition: background-color 0.3s;
+        }
+        nav ul li a:hover {
+            background-color: #0048a7;
+        }
+        
+        nav ul li a.active {
+            background-color: #0048a7;
+        }
         
         .alert {
             padding: 15px;
@@ -385,15 +413,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_profile'])) {
 </head>
 <body>
     <header>
-        <div class="container header-content">
-            <div class="logo">Личный кабинет</div>
-            <div class="user-menu">
-                <span>Добро пожаловать, <?php echo htmlspecialchars($user_data['ФИО']); ?></span>
-                <a href="index.php">На главную</a>
-                <form method="GET">
+        <div class="container">
+            <nav>
+                <ul>
+                    <li><a href="index.php">Главная</a></li>
+                    <li><a href="news.php">Новости</a></li>
+                    <li><a href="search.php">Поиск билетов</a></li>
+                    <li><a href="contact.php">Контакты</a></li>
+                    <?php if(isset($_SESSION['user_id'])): ?>
+                    <li><a href="account.php" class="<?php echo $current_page == 'profile' ? 'active' : ''; ?>">Личный кабинет</a></li>
+                    <?php else: ?>
+                    <li><a href="login.php" class="<?php echo $current_page == 'login' ? 'active' : ''; ?>">Авторизация</a></li>
+                    <?php endif; ?>
+                    <form method="GET">
                     <button type="submit" name="logout" class="logout-btn">Выйти</button>
                 </form>
-            </div>
+                    </ul>
+                    </nav>
+                    
+                
         </div>
     </header>
     
@@ -409,26 +447,26 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_profile'])) {
                     <div class="form-row">
                         <div class="form-group">
                             <label for="name">Имя</label>
-                            <input type="text" id="name" name="name" value="<?php echo htmlspecialchars($user_data['ФИО']); ?>" required>
+                            <input type="text" id="name" name="name" value="<?php echo htmlspecialchars($user_data['ФИО']); ?>" <?php echo $change_data == 1 ? '' : 'disabled';?>>
                         </div>
                         <div class="form-group">
                             <label for="email">Email</label>
-                            <input type="email" id="email" name="email" value="<?php echo htmlspecialchars($user_data['email']); ?>" disabled>
+                            <input type="email" id="email" name="email" value="<?php echo htmlspecialchars($user_data['email']); ?>" <?php echo $change_data == 1 ? '' : 'disabled';?>>
                         </div>
                     </div>
                     
                     <div class="form-row">
                         <div class="form-group">
                             <label for="phone">Телефон</label>
-                            <input type="tel" id="phone" name="phone" value="<?php echo htmlspecialchars($user_data['Телефон'] ?? ''); ?>">
+                            <input type="tel" id="phone" name="phone" value="<?php echo htmlspecialchars($user_data['Телефон'] ?? ''); ?>" <?php echo $change_data == 1 ? '' : 'disabled';?>>
                         </div>
                         <div class="form-group">
                             <label for="pass_data">Паспортные данные</label>
-                            <input type="text" id="passdata" name="passdata" value="<?php echo htmlspecialchars($user_data['Паспорт'] ?? ''); ?>">
+                            <input type="text" id="passdata" name="passdata" value="<?php echo htmlspecialchars($user_data['Паспорт'] ?? ''); ?>" <?php echo $change_data == 1 ? '' : 'disabled';?>>
                         </div>
                     </div>
                     
-                    <div class="form-row">
+                    <div class="form-row" style="display: <?php echo $change_data == 1 ? '' : 'none';?>;">
                         <div class="form-group">
                             <label for="current_password">Текущий пароль (для изменения)</label>
                             <input type="password" id="current_password" name="current_password">
@@ -439,7 +477,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_profile'])) {
                         </div>
                     </div>
                     
-                    <button type="submit" name="update_profile" class="save-btn">Сохранить изменения</button>
+                    <button <?php echo $change_data == 1 ? '' : 'hidden';?> type="submit" name="update_profile" class="save-btn">Сохранить изменения</button>
+                    <button <?php echo $change_data == 1 ? 'hidden' : '';?> type="submit" name="change" class="save-btn">Изменить данные</button>
                 </form>
                 
                 <div class="tickets-list">
@@ -454,15 +493,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_profile'])) {
                                         <?php echo htmlspecialchars($ticket['Город вылета']); ?> → 
                                         <?php echo htmlspecialchars($ticket['Город назначения']); ?>
                                     </div>
-                                    <div class="ticket-status status-<?php echo ($ticket['Статус'] == 'Забронирован' ? 'pending' : 'confirmed'); ?>">
-                                        <?php echo $ticket['Статус'] == 'Забронирован' ? 'Забронирован' : 'Использован'; ?>
-                                    </div>
+                                    
                                 </div>
                                 
                                 <div class="ticket-details">
                                     <div class="ticket-info">
                                         <h4>Вылет</h4>
                                         <p><?php echo date('d.m.Y', strtotime($ticket['Дата вылета']))." ".date('H:i', strtotime($ticket['Время вылета'])); ?></p>
+                                        <br>
+                                        <div>
+                                        <h4>Пассажир</h4>
+                                        <p><?php echo $ticket['ФИО_пассажира']; ?></p>
+                                        </div>
                                     </div>
                                     <div class="ticket-info">
                                         <h4>Прилет</h4>
@@ -477,6 +519,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_profile'])) {
                                         <h4>Стоимость</h4>
                                         <p class="ticket-price"><?php echo number_format($ticket['Стоимость'], 0, '', ' '); ?> ₽</p>
                                     </div>
+                                    
                                 </div>
                             
                             </div>
@@ -492,4 +535,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_profile'])) {
     
     <?php $mysqli->close(); ?>
 </body>
+<footer style="
+    background-color: #003580;
+    color: white;
+    padding: 30px 0;
+    text-align: center;
+    margin-top: 50px;
+    font-family: Arial, sans-serif;
+">
+    <div style="max-width: 100%; margin: 0 auto; padding: 0 px;">
+        <div style="margin-bottom: 15px;">
+            <p style="font-size: 18px; font-weight: bold; margin-bottom: 5px;">Сервис поиска и покупки авиабилетов</p>
+        </div>
+        <div>
+            <p style="font-size: 12px;">Разработчик: Данилов Г. А. user@server.com</p>
+        </div>
+    </div>
+</footer>
 </html>
