@@ -1,7 +1,6 @@
 <?php
 session_start();
 
-
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit();
@@ -9,9 +8,15 @@ if (!isset($_SESSION['user_id'])) {
 
 require_once 'conn.php';
 
-$flight_id = isset($_GET['flight_id']) ? (int)$_GET['flight_id'] : 0;
+// Получаем количество билетов и ID рейса
+$ticket_count = isset($_POST['ticket_count']) ? (int)$_POST['ticket_count'] : 1;
+$flight_id = isset($_POST['flight_id']) ? (int)$_POST['flight_id'] : 0;
 
+if ($flight_id === 0) {
+    die("Рейс не указан");
+}
 
+// Получаем информацию о рейсе
 $stmt = $mysqli->prepare("
     SELECT f.*, 
            dep.Город AS departure_city, dep.Название AS departure_airport,
@@ -31,43 +36,57 @@ if (!$flight) {
     die("Рейс не найден");
 }
 
+$msg = '';
+$error = '';
 
+// Обработка формы покупки
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['confirm_purchase'])) {
-
-    $bag = $_POST['baggage'];
-    $lun = $_POST['lunch'];
-    $seat_number = "00";
-    $status = 'Забронирован';
-    if ($flight['Кол-во доступных мест'] <= 0) {
-        $error = "Извините, места закончились";
+    $bag = isset($_POST['baggage']) ? 'Да' : 'Нет';
+    $lun = isset($_POST['lunch']) ? 'Да' : 'Нет';
+    $passenger_names = $_POST['passenger_name'];
+    $passports = $_POST['passport'];
+    
+    // Проверяем доступное количество мест
+    if ($flight['Кол-во доступных мест'] < $ticket_count) {
+        $error = "Извините, недостаточно свободных мест";
     } else {
-
+        $mysqli->begin_transaction();
         
         try {
-            $insert = $mysqli->prepare("
-                INSERT INTO ticket (flight_id, user_id, `Номер места`, `Статус`, `Багаж`, `Питание`) 
-                VALUES (?, ?, ?, ?, ?, ?)
-            ");
-            $insert->bind_param("iissss", $flight_id, $_SESSION['user_id'], $seat_number, $status, $bag, $lun);
-            if (!$insert) {
-                die("Ошибка подготовки запроса: " . $mysqli->error);
+            // Создаем билеты
+            for ($i = 0; $i < $ticket_count; $i++) {
+                $seat_number = str_pad($i+1, 2, '0', STR_PAD_LEFT);
+                
+                $insert = $mysqli->prepare("
+                    INSERT INTO ticket (flight_id, user_id, `Номер места`, `Багаж`, `Питание`, `ФИО_пассажира`, `Паспортные_данные`) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ");
+                $insert->bind_param(
+                    "iisssss", 
+                    $flight_id, 
+                    $_SESSION['user_id'], 
+                    $seat_number, 
+                    $bag, 
+                    $lun,
+                    $passenger_names[$i],
+                    $passports[$i]
+                );
+                $insert->execute();
+                $insert->close();
             }
-
-            if (!$insert->execute()) {
-                die("Ошибка выполнения запроса: " . $insert->error);
-            }
-            // $update = $mysqli->prepare("
-            //     UPDATE flight 
-            //     SET `Кол-во доступных мест` = `Кол-во доступных мест` - 1 
-            //     WHERE flight_id = ?
-            // ");
-            // $update->bind_param("i", $flight_id);
-            // $update->execute();
             
-            // Подтверждение транзакции
-            $msg = '<div class="alert success">Билет успешно приобретен!</div>';
-            // Перенаправление на страницу успешной покупки
-           // header("Location: purchase_success.php?ticket_id=" . $mysqli->insert_id);
+            // Обновляем количество доступных мест
+            $update = $mysqli->prepare("
+                UPDATE flight 
+                SET `Кол-во доступных мест` = `Кол-во доступных мест` - ? 
+                WHERE flight_id = ?
+            ");
+            $update->bind_param("ii", $ticket_count, $flight_id);
+            $update->execute();
+            $update->close();
+            
+            $mysqli->commit();
+            $msg = '<div class="alert success">Успешно приобретено '.$ticket_count.' билет(а)!</div>';
         } catch (Exception $e) {
             $mysqli->rollback();
             $error = "Ошибка при покупке билета: " . $e->getMessage();
@@ -81,8 +100,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['confirm_purchase'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Личный кабинет | Авиабилеты</title>
+    <title>Покупка билетов | Авиабилеты</title>
     <style>
+        /* Стили остаются такими же, как в вашем исходном коде */
         * {
             margin: 0;
             padding: 0;
@@ -374,12 +394,29 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['confirm_purchase'])) {
         .content button:hover{
             background-color: #0048a7;
         }
+        
+        .passenger-form {
+            margin-top: 20px;
+        }
+        
+        .passenger-item {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+        }
+        
+        .passenger-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #003580;
+        }
     </style>
 </head>
 <body>
     <header>
         <div class="container header-content">
-            <div class="logo">Страница покупки билета</div>
+            <div class="logo">Покупка билетов (<?php echo $ticket_count; ?> шт.)</div>
             <div class="user-menu">
                 <a href="search.php">Назад</a>
             </div>
@@ -388,60 +425,91 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['confirm_purchase'])) {
     
     <div class="container">
         <div class="main-content">
-            
             <main class="content">
-                <h2 class="section-title">Информация о билете</h2>
+                <h2 class="section-title">Информация о рейсе</h2>
                 
-                <?php echo $msg; ?>
+                <?php if ($msg): ?>
+                    <div class="alert success"><?php echo $msg; ?></div>
+                <?php endif; ?>
+                
+                <?php if ($error): ?>
+                    <div class="alert error"><?php echo $error; ?></div>
+                <?php endif; ?>
                 
                 <div class="flight-info">
-                <p><strong>Рейс:</strong> <?php echo htmlspecialchars($flight['company_name']); ?> 
-                №<?php echo htmlspecialchars($flight['Номер рейса']); ?></p>
-                <p><strong>Маршрут:</strong> <?php echo htmlspecialchars($flight['departure_city']); ?> 
-                (<?php echo htmlspecialchars($flight['departure_airport']); ?>) → 
-                <?php echo htmlspecialchars($flight['arrival_city']); ?> 
-                (<?php echo htmlspecialchars($flight['arrival_airport']); ?>)</p>
-                <p><strong>Дата вылета:</strong> <?php echo date('d.m.Y', strtotime($flight['Дата вылета'])); ?></p>
-                <p><strong>Время вылета:</strong> <?php echo date('H:i', strtotime($flight['Время вылета'])); ?></p>
-                <p><strong>Дата прибытия:</strong> <?php echo date('d.m.Y', strtotime($flight['Дата прибытия'])); ?></p>
-                <p><strong>Время прибытия:</strong> <?php echo date('H:i', strtotime($flight['Время прибытия'])); ?></p>
+                    <p><strong>Рейс:</strong> <?php echo htmlspecialchars($flight['company_name']); ?> 
+                    №<?php echo htmlspecialchars($flight['Номер рейса']); ?></p>
+                    <p><strong>Маршрут:</strong> <?php echo htmlspecialchars($flight['departure_city']); ?> 
+                    (<?php echo htmlspecialchars($flight['departure_airport']); ?>) → 
+                    <?php echo htmlspecialchars($flight['arrival_city']); ?> 
+                    (<?php echo htmlspecialchars($flight['arrival_airport']); ?>)</p>
+                    <p><strong>Дата вылета:</strong> <?php echo date('d.m.Y', strtotime($flight['Дата вылета'])); ?></p>
+                    <p><strong>Время вылета:</strong> <?php echo date('H:i', strtotime($flight['Время вылета'])); ?></p>
+                    <p><strong>Дата прибытия:</strong> <?php echo date('d.m.Y', strtotime($flight['Дата прибытия'])); ?></p>
+                    <p><strong>Время прибытия:</strong> <?php echo date('H:i', strtotime($flight['Время прибытия'])); ?></p>
+                    <p><strong>Количество билетов:</strong> <?php echo $ticket_count; ?></p>
+                    <p><strong>Стоимость одного билета:</strong> <?php echo $flight['Стоимость']; ?> руб.</p>
+                    <p><strong>Общая стоимость:</strong> <?php echo $flight['Стоимость'] * $ticket_count; ?> руб.</p>
                 </div>
 
-                <?php if (isset($error)): ?>
-                    <div class="error"><?php echo $error; ?></div>
-                <?php endif; ?>
-                <form method="post" class="add-form">
+                <h2 class="section-title">Дополнительные услуги</h2>
+                <form method="post" class="services-form">
                     <div>
-                        <label>Багаж:</label>
-                        <input type="checkbox" name="baggage" value="Да" >
-                        <label>Питание:</label>
-                        <input type="checkbox" name="lunch" value="Да">
+                        <label>
+                            <input type="checkbox" name="baggage" value="Да">
+                            Багаж (+500 руб. к стоимости каждого билета)
+                        </label>
                     </div>
-                    <h2 class="section-title">Данные пассажира</h2>
-                    <form method="post" class="passenger-form">
+                    <div>
+                        <label>
+                            <input type="checkbox" name="lunch" value="Да">
+                            Питание (+300 руб. к стоимости каждого билета)
+                        </label>
+                    </div>
+                    
+                    <h2 class="section-title">Данные пассажиров</h2>
+                    
+                    <?php for ($i = 1; $i <= $ticket_count; $i++): ?>
+                    <div class="passenger-item">
+                        <div class="passenger-title">Пассажир #<?php echo $i; ?></div>
+                        <div class="form-group">
+                            <label>ФИО:</label>
+                            <input type="text" name="passenger_name[]" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Паспортные данные:</label>
+                            <input type="text" name="passport[]" required>
+                        </div>
+                    </div>
+                    <?php endfor; ?>
+                    
+                    <input type="hidden" name="flight_id" value="<?php echo $flight_id; ?>">
+                    <input type="hidden" name="ticket_count" value="<?php echo $ticket_count; ?>">
                     <input type="hidden" name="confirm_purchase" value="1">
                     
-                    <div>
-                        <label>ФИО:</label>
-                        <input type="text" name="passenger_name" required 
-                            value="<?php echo isset($_SESSION['user_name']) ? htmlspecialchars($_SESSION['user_name']) : ''; ?>">
-                    </div>
-                    
-                    <div>
-                        <label>Email:</label>
-                        <input type="text" name="passenger_surname" required
-                            value="<?php echo isset($_SESSION['user_email']) ? htmlspecialchars($_SESSION['user_email']) : ''; ?>">
-                    </div>
-                    
-                    <br>
-                    <strong><p id="numberDisplay">Итоговая Стоимость: <?php echo $flight['Стоимость'] ?></p></strong>
-                    <button type="submit" >Подтвердить покупку</button>
+                    <button type="submit" class="save-btn">Подтвердить покупку всех билетов</button>
                 </form>
             </main>
         </div>
     </div>
 
-    
     <?php $mysqli->close(); ?>
 </body>
+<footer style="
+    background-color: #003580;
+    color: white;
+    padding: 30px 0;
+    text-align: center;
+    margin-top: 50px;
+    font-family: Arial, sans-serif;
+">
+    <div style="max-width: 100%; margin: 0 auto; padding: 0 px;">
+        <div style="margin-bottom: 15px;">
+            <p style="font-size: 18px; font-weight: bold; margin-bottom: 5px;">Сервис поиска и покупки авиабилетов</p>
+        </div>
+        <div>
+            <p style="font-size: 12px;">Разработчик: Данилов Г. А. user@server.com</p>
+        </div>
+    </div>
+</footer>
 </html>
